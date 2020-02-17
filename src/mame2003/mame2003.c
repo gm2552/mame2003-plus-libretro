@@ -11,7 +11,8 @@
 #include <libretro.h>
 #include <file/file_path.h>
 #include <math.h>
-
+#include <unzip.h>
+#include <sys/stat.h>
 
 #include "mame.h"
 #include "driver.h"
@@ -62,6 +63,7 @@ static retro_input_state_t         input_cb                      = NULL;
 static retro_audio_sample_batch_t  audio_batch_cb                = NULL;
 retro_set_led_state_t              led_state_cb                  = NULL;
 
+const char* SAMPLES = "samples/";
 
 /******************************************************************************
 
@@ -127,6 +129,45 @@ static void   check_system_specs(void);
        int    get_mame_ctrl_id(int display_idx, int retro_ID);
        void   change_control_type(void);
 
+static void unpackSamples(const struct retro_game_info *game);
+
+bool strStartsWith(const char *search, const char *str)
+{
+  return strncmp(search, str, strlen(search)) == 0;
+}
+
+bool strEndsWith(char const* suffix, const char* str)
+{
+  if (!str && !suffix)
+     return true;
+     
+  if (!str || !suffix)
+     return false;
+  
+  int lenstr = strlen(str);
+  int lensuf = strlen(suffix);
+  
+  return strcmp(str + lenstr - lensuf, suffix) == 0;
+  
+}
+
+static void _mkdir(const char *dir) {
+        char tmp[256];
+        char *p = NULL;
+        size_t len;
+
+        snprintf(tmp, sizeof(tmp),"%s",dir);
+        len = strlen(tmp);
+        if(tmp[len - 1] == '/')
+                tmp[len - 1] = 0;
+        for(p = tmp + 1; *p; p++)
+                if(*p == '/') {
+                        *p = 0;
+                        mkdir(tmp, S_IRWXU);
+                        *p = '/';
+                }
+        mkdir(tmp, S_IRWXU);
+}
 
 /******************************************************************************
 
@@ -807,7 +848,12 @@ bool retro_load_game(const struct retro_game_info *game)
   if ( options.libretro_content_path[i-1] == '/' || options.libretro_content_path[i-1]  == '\\' ) 
    options.libretro_content_path[i-1] =0; 
 
+
+
+
   /* Get system directory from frontend */
+  options.libretro_system_path = "/tmp";
+  /*
   options.libretro_system_path = NULL;
   environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY,&options.libretro_system_path);
   if (options.libretro_system_path == NULL || options.libretro_system_path[0] == '\0')
@@ -815,8 +861,11 @@ bool retro_load_game(const struct retro_game_info *game)
       log_cb(RETRO_LOG_INFO, LOGPRE "libretro system path not set by frontend, using content path\n");
       options.libretro_system_path = options.libretro_content_path;
   }
+  */
 
   /* Get save directory from frontend */
+  options.libretro_save_path = "/tmp";
+  /*
   options.libretro_save_path = NULL;
   environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY,&options.libretro_save_path);
   if (options.libretro_save_path == NULL || options.libretro_save_path[0] == '\0')
@@ -824,11 +873,12 @@ bool retro_load_game(const struct retro_game_info *game)
       log_cb(RETRO_LOG_INFO,  LOGPRE "libretro save path not set by frontent, using content path\n");
       options.libretro_save_path = options.libretro_content_path;
   }
-
+  */
   log_cb(RETRO_LOG_INFO, LOGPRE "content path: %s\n", options.libretro_content_path);
   log_cb(RETRO_LOG_INFO, LOGPRE " system path: %s\n", options.libretro_system_path);
   log_cb(RETRO_LOG_INFO, LOGPRE "   save path: %s\n", options.libretro_save_path);
 
+  unpackSamples(game);
 
   init_core_options();
   update_variables(true);
@@ -2145,3 +2195,60 @@ const struct KeyboardInfo retroKeys[] =
 
     {0, 0, 0}
 };
+
+static void unpackSamples(const struct retro_game_info *game)
+{
+    /* Seach the zip for samples */
+  log_cb(RETRO_LOG_INFO, "Searching zip content for samples for file %s\n", path_basename(game->path));
+  ZIP* contentZip = openzip(FILETYPE_IMAGE, 0, path_basename(game->path));
+  if (contentZip)
+  {
+     log_cb(RETRO_LOG_INFO, "Zip file open.  Iterating content\n");
+     struct zipent* entry = NULL;
+     while (entry = readzip(contentZip))
+     {
+        log_cb(RETRO_LOG_INFO, "Zip entry name %s\n", entry->name);
+        if (strStartsWith(SAMPLES, entry->name) && strEndsWith(".zip", entry->name))
+        {
+           log_cb(RETRO_LOG_INFO, "Found content file.\n");
+           /*
+            * Create a buffer and copy the file contents to the buffer 
+           */ 
+           char* fileBuf = malloc(entry->uncompressed_size);
+           
+           if (fileBuf && readuncompresszip(contentZip, entry, fileBuf) ==0)
+           {
+              char baseSamplePath[PATH_MAX + 1];
+              char fullSamplePath[PATH_MAX + 1];
+
+              snprintf(baseSamplePath, PATH_MAX, "%s/mame2003-plus/samples/", options.libretro_system_path);
+              snprintf(fullSamplePath, PATH_MAX, "%s%s", baseSamplePath, path_basename(entry->name));
+
+              _mkdir(baseSamplePath);
+              FILE* pFile = fopen(fullSamplePath, "wb");
+              if (pFile)
+              {
+                 log_cb(RETRO_LOG_INFO, "Writing file content to %s.\n", fullSamplePath);
+                 fwrite(fileBuf, sizeof(char), entry->uncompressed_size, pFile);
+                 fclose(pFile);
+              }
+              else
+              {
+                  log_cb(RETRO_LOG_ERROR, "Errror writing file content to %s.\n", fullSamplePath);
+              }
+              
+             
+              log_cb(RETRO_LOG_INFO, "Writing file content to %s.\n", fullSamplePath);
+           } 
+           
+           if (fileBuf)
+              free(fileBuf);
+           
+           break;
+        }
+     }
+     
+     closezip(contentZip);
+  }
+
+}
