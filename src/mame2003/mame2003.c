@@ -852,7 +852,7 @@ bool retro_load_game(const struct retro_game_info *game)
 
 
   /* Get system directory from frontend */
-  options.libretro_system_path = "/tmp";
+  options.libretro_system_path = "/tmp/mame2003-plus";
   /*
   options.libretro_system_path = NULL;
   environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY,&options.libretro_system_path);
@@ -864,7 +864,7 @@ bool retro_load_game(const struct retro_game_info *game)
   */
 
   /* Get save directory from frontend */
-  options.libretro_save_path = "/tmp";
+  options.libretro_save_path = "/tmp/mame2003-plus";
   /*
   options.libretro_save_path = NULL;
   environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY,&options.libretro_save_path);
@@ -2221,7 +2221,7 @@ static void unpackSamples(const struct retro_game_info *game)
               char baseSamplePath[PATH_MAX + 1];
               char fullSamplePath[PATH_MAX + 1];
 
-              snprintf(baseSamplePath, PATH_MAX, "%s/mame2003-plus/samples/", options.libretro_system_path);
+              snprintf(baseSamplePath, PATH_MAX, "%s/samples/", options.libretro_system_path);
               snprintf(fullSamplePath, PATH_MAX, "%s%s", baseSamplePath, path_basename(entry->name));
 
               _mkdir(baseSamplePath);
