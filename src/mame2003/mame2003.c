@@ -7,6 +7,10 @@
 *********************************************************************/
 
 #include <stdint.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <string/stdstring.h>
 #include <libretro.h>
 #include <file/file_path.h>
@@ -63,7 +67,10 @@ static retro_input_state_t         input_cb                      = NULL;
 static retro_audio_sample_batch_t  audio_batch_cb                = NULL;
 retro_set_led_state_t              led_state_cb                  = NULL;
 
+char localCHDFile[1024];
 const char* SAMPLES = "samples/";
+const char* NVRAM = "nvram/";
+const char* CHD = "chd/";
 
 /******************************************************************************
 
@@ -130,6 +137,8 @@ static void   check_system_specs(void);
        void   change_control_type(void);
 
 static void unpackSamples(const struct retro_game_info *game);
+static void unpackNVRAM(const struct retro_game_info *game);
+static void unpackCHDs(const struct retro_game_info *game);
 
 bool strStartsWith(const char *search, const char *str)
 {
@@ -853,6 +862,7 @@ bool retro_load_game(const struct retro_game_info *game)
 
   /* Get system directory from frontend */
   options.libretro_system_path = "/tmp/mame2003-plus";
+  _mkdir(options.libretro_system_path);
   /*
   options.libretro_system_path = NULL;
   environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY,&options.libretro_system_path);
@@ -864,7 +874,7 @@ bool retro_load_game(const struct retro_game_info *game)
   */
 
   /* Get save directory from frontend */
-  options.libretro_save_path = "/tmp/mame2003-plus";
+  options.libretro_save_path = "/userdata/mame2003-plus";
   /*
   options.libretro_save_path = NULL;
   environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY,&options.libretro_save_path);
@@ -879,6 +889,8 @@ bool retro_load_game(const struct retro_game_info *game)
   log_cb(RETRO_LOG_INFO, LOGPRE "   save path: %s\n", options.libretro_save_path);
 
   unpackSamples(game);
+  unpackNVRAM(game);
+  unpackCHDs(game);
 
   init_core_options();
   update_variables(true);
@@ -1262,6 +1274,9 @@ void retro_unload_game(void)
     /* do we need to be freeing things here? */
 
     free(options.romset_filename_noext);
+    
+    if (localCHDFile[0])
+      remove(localCHDFile);    
 }
 
 void retro_deinit(void)
@@ -2252,3 +2267,129 @@ static void unpackSamples(const struct retro_game_info *game)
   }
 
 }
+
+static void unpackNVRAM(const struct retro_game_info *game)
+{
+    /* Seach the zip for NVRAM files */
+  log_cb(RETRO_LOG_INFO, "Searching zip content for nvram for file %s\n", path_basename(game->path));
+  
+  ZIP* contentZip = openzip(FILETYPE_IMAGE, 0, path_basename(game->path));
+  if (contentZip)
+  {
+     log_cb(RETRO_LOG_INFO, "Zip file open.  Iterating content\n");
+     
+     struct zipent* entry = NULL;
+     while (entry = readzip(contentZip))
+     {
+        log_cb(RETRO_LOG_INFO, "Zip entry name %s\n", entry->name);
+        if (strStartsWith(NVRAM, entry->name) && strEndsWith(".nv", entry->name))
+        {
+           log_cb(RETRO_LOG_INFO, "Found nvram file.\n");
+           /*
+            * Create a buffer and copy the file contents to the buffer 
+           */ 
+           void* fileBuf = malloc(entry->uncompressed_size);
+           
+           if (fileBuf && readuncompresszip(contentZip, entry, fileBuf) ==0)
+           {
+              char baseSamplePath[PATH_MAX + 1];
+              char fullSamplePath[PATH_MAX + 1];
+
+              snprintf(baseSamplePath, PATH_MAX, "%s%s%s", options.libretro_save_path, path_default_slash(), "mame2003-plus/nvram/");
+              snprintf(fullSamplePath, PATH_MAX, "%s%s", baseSamplePath, path_basename(entry->name));
+
+              FILE* pFile = fopen(fullSamplePath, "wb");
+              if (pFile)
+              {
+                 log_cb(RETRO_LOG_INFO, "Writing nvram content to %s.\n", fullSamplePath);
+                 fwrite(fileBuf, sizeof(char), entry->uncompressed_size, pFile);
+                 fclose(pFile);
+              }
+              else
+              {
+                  log_cb(RETRO_LOG_ERROR, "Error writing nvram to %s.\n", fullSamplePath);
+              }
+           } 
+           
+           if (fileBuf)
+              free(fileBuf);
+           
+           break;
+        }
+     }
+     closezip(contentZip);
+  }
+
+}
+
+static void unpackCHDs(const struct retro_game_info *game)
+{
+  memset(localCHDFile, 0, sizeof(localCHDFile));
+
+    /* Seach the zip for CHD files */
+  log_cb(RETRO_LOG_INFO, "Searching zip content for CHD for file %s\n", path_basename(game->path));
+  
+  ZIP* contentZip = openzip(FILETYPE_IMAGE, 0, path_basename(game->path));
+  if (contentZip)
+  {
+     log_cb(RETRO_LOG_INFO, "Zip file open.  Iterating content\n");
+      
+     struct zipent* entry = NULL;
+     while (entry = readzip(contentZip))
+     {
+
+        log_cb(RETRO_LOG_INFO, "Zip entry name %s\n", entry->name);
+        if (strStartsWith(CHD, entry->name) && strEndsWith(".chd", entry->name))
+        {
+           log_cb(RETRO_LOG_INFO, "Found chd file.\n");
+           /*
+            * Map a file and copy the unzipped contents to the file 
+           */ 
+           
+           char baseSamplePath[PATH_MAX + 1];
+           char fullSamplePath[PATH_MAX + 1];
+           
+           snprintf(baseSamplePath, PATH_MAX, "%s", "/tmp/");
+           snprintf(fullSamplePath, PATH_MAX, "%s%s", baseSamplePath, path_basename(entry->name));
+
+           int fd = open(fullSamplePath, O_RDWR | O_CREAT | O_TRUNC, (mode_t)0600);
+           if (fd != -1)
+           {
+               snprintf(localCHDFile, 1024, "%s", fullSamplePath);
+           
+	           if (lseek(fd, (entry->uncompressed_size - 1), SEEK_SET) != -1)
+               {
+	               write(fd, "", 1);
+		           
+		           log_cb(RETRO_LOG_INFO, "Mapping CHD file to memory.\n");
+		           void* fileBuf =  mmap((void*)0, entry->uncompressed_size, PROT_WRITE|PROT_READ, MAP_SHARED, fd, (off_t)0);
+		           
+		           if (fileBuf != (void*)(-1))
+		           {
+		              log_cb(RETRO_LOG_INFO, "Writing CHD content to %s.\n", fullSamplePath);
+	                  if (readuncompresszip(contentZip, entry, fileBuf) != 0)
+	                  {
+	                     log_cb(RETRO_LOG_ERROR, "Error writing CHD to %s.\n", fullSamplePath);
+	                  }
+	                 
+	                  munmap(fileBuf, entry->uncompressed_size);
+		           } 
+	               else
+	                  log_cb(RETRO_LOG_ERROR, "Failed map file to memory for CHD.\n");
+	           }
+	           else
+	               log_cb(RETRO_LOG_ERROR, "Failed to expand CHD target file size.\n");	
+	               
+               close(fd);
+               break;
+           }
+           else
+               log_cb(RETRO_LOG_ERROR, "Failed to create target CHD file.\n");
+               
+           break;
+        }
+     }
+     closezip(contentZip);
+  }
+}
+

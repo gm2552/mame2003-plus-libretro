@@ -1822,6 +1822,7 @@ static int process_disk_entries(struct rom_load_data *romdata, const struct RomM
 			else
 				strcat(filename, ".chd");
 
+            snprintf(filename, sizeof(filename),"%s%s", "/tmp/", filename);
 			/* first open the source drive */
 			log_cb(RETRO_LOG_INFO, LOGPRE "Opening disk image: %s\n", filename);
 			source = chd_open(filename, 0, NULL);
