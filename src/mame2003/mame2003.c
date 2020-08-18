@@ -144,6 +144,8 @@ static void   check_system_specs(void);
 static void unpackSamples(const struct retro_game_info *game);
 static void unpackNVRAM(const struct retro_game_info *game);
 static void unpackCHDs(const struct retro_game_info *game);
+static void unpackHiScoreDB(const struct retro_game_info *game);
+static void unpackCheats(const struct retro_game_info *game);
 
 bool strStartsWith(const char *search, const char *str)
 {
@@ -692,7 +694,7 @@ static void update_variables(bool first_time)
             options.system_subfolder = false;
           break;
 
-          case OPT_CORE_SAVE_SUBFOLDER:
+        case OPT_CORE_SAVE_SUBFOLDER:
           if(strcmp(var.value, "enabled") == 0)
             options.save_subfolder = true;
           else
@@ -816,7 +818,6 @@ static struct retro_controller_info retropad_subdevice_ports[] = {
 
 bool retro_load_game(const struct retro_game_info *game)
 {
-  int i;
   int              driverIndex    = 0;
   int              port_index;
   char             *driver_lookup = NULL;
@@ -958,32 +959,22 @@ bool retro_load_game(const struct retro_game_info *game)
 
   set_content_flags();
 
-  options.libretro_content_path = strdup(game->path);
+  options.libretro_content_path = canonicalize_file_name(game->path);
   path_basedir(options.libretro_content_path);
-  /*fix trailing slash in path*/
-  for(i = 0; options.libretro_content_path[i] != '\0'; ++i);
-  if ( options.libretro_content_path[i-1] == '/' || options.libretro_content_path[i-1]  == '\\' )
-   options.libretro_content_path[i-1] =0;
-
-
-
+  path_remove_trailing_slash(options.libretro_content_path);
 
   /* Get system directory from frontend */
-  options.libretro_system_path = "/tmp/mame2003-plus";
-  _mkdir(options.libretro_system_path);
-  /*
   options.libretro_system_path = NULL;
   environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY,&options.libretro_system_path);
   if (options.libretro_system_path == NULL || options.libretro_system_path[0] == '\0')
   {
-      log_cb(RETRO_LOG_INFO, LOGPRE "libretro system path not set by frontend, using content path\n");
-      options.libretro_system_path = options.libretro_content_path;
+      log_cb(RETRO_LOG_INFO, LOGPRE "libretro system path not set by frontend, using '/tmp'.\n");
+      options.libretro_system_path = "/tmp";
   }
-  */
+
+  path_remove_trailing_slash(options.libretro_system_path);
 
   /* Get save directory from frontend */
-  options.libretro_save_path = "/userdata/mame2003-plus";
-  /*
   options.libretro_save_path = NULL;
   environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY,&options.libretro_save_path);
   if (options.libretro_save_path == NULL || options.libretro_save_path[0] == '\0')
@@ -991,17 +982,27 @@ bool retro_load_game(const struct retro_game_info *game)
       log_cb(RETRO_LOG_INFO,  LOGPRE "libretro save path not set by frontent, using content path\n");
       options.libretro_save_path = options.libretro_content_path;
   }
-  */
+
+  path_remove_trailing_slash(options.libretro_save_path);
+
   log_cb(RETRO_LOG_INFO, LOGPRE "content path: %s\n", options.libretro_content_path);
   log_cb(RETRO_LOG_INFO, LOGPRE " system path: %s\n", options.libretro_system_path);
   log_cb(RETRO_LOG_INFO, LOGPRE "   save path: %s\n", options.libretro_save_path);
 
+  init_core_options();
+  update_variables(true);
+
+  /* force use of mame2003-plus subfolder */
+  /*
+  options.save_subfolder = true;
+  options.system_subfolder = true;
+  */
+
   unpackSamples(game);
   unpackNVRAM(game);
   unpackCHDs(game);
-
-  init_core_options();
-  update_variables(true);
+  unpackHiScoreDB(game);
+  unpackCheats(game);
 
   for(port_index = DISP_PLAYER6 - 1; port_index > (options.content_flags[CONTENT_CTRL_COUNT] - 1); port_index--)
   {
@@ -2344,10 +2345,11 @@ static void unpackSamples(const struct retro_game_info *game)
               char baseSamplePath[PATH_MAX + 1];
               char fullSamplePath[PATH_MAX + 1];
 
-              snprintf(baseSamplePath, PATH_MAX, "%s/samples/", options.libretro_system_path);
-              snprintf(fullSamplePath, PATH_MAX, "%s%s", baseSamplePath, path_basename(entry->name));
+              osd_get_path(FILETYPE_SAMPLE, baseSamplePath);
+              snprintf(fullSamplePath, PATH_MAX, "%s%c%s", baseSamplePath, path_default_slash_c(), path_basename(entry->name));
 
               _mkdir(baseSamplePath);
+
               FILE* pFile = fopen(fullSamplePath, "wb");
               if (pFile)
               {
@@ -2400,22 +2402,22 @@ static void unpackNVRAM(const struct retro_game_info *game)
            
            if (fileBuf && readuncompresszip(contentZip, entry, fileBuf) ==0)
            {
-              char baseSamplePath[PATH_MAX + 1];
-              char fullSamplePath[PATH_MAX + 1];
+              char basePath[PATH_MAX + 1];
+              char fullPath[PATH_MAX + 1];
 
-              snprintf(baseSamplePath, PATH_MAX, "%s%s%s", options.libretro_save_path, path_default_slash(), "mame2003-plus/nvram/");
-              snprintf(fullSamplePath, PATH_MAX, "%s%s", baseSamplePath, path_basename(entry->name));
+              osd_get_path(FILETYPE_NVRAM, basePath);
+              snprintf(fullPath, PATH_MAX, "%s%c%s", basePath, path_default_slash_c(), path_basename(entry->name));
 
-              FILE* pFile = fopen(fullSamplePath, "wb");
+              FILE* pFile = fopen(fullPath, "wb");
               if (pFile)
               {
-                 log_cb(RETRO_LOG_INFO, "Writing nvram content to %s.\n", fullSamplePath);
+                 log_cb(RETRO_LOG_INFO, "Writing nvram content to %s.\n", fullPath);
                  fwrite(fileBuf, sizeof(char), entry->uncompressed_size, pFile);
                  fclose(pFile);
               }
               else
               {
-                  log_cb(RETRO_LOG_ERROR, "Error writing nvram to %s.\n", fullSamplePath);
+                  log_cb(RETRO_LOG_ERROR, "Error writing nvram to %s.\n", fullPath);
               }
            } 
            
@@ -2427,7 +2429,6 @@ static void unpackNVRAM(const struct retro_game_info *game)
      }
      closezip(contentZip);
   }
-
 }
 
 static void unpackCHDs(const struct retro_game_info *game)
@@ -2445,25 +2446,25 @@ static void unpackCHDs(const struct retro_game_info *game)
      struct zipent* entry = NULL;
      while (entry = readzip(contentZip))
      {
-
         log_cb(RETRO_LOG_INFO, "Zip entry name %s\n", entry->name);
+
         if (strStartsWith(CHD, entry->name) && strEndsWith(".chd", entry->name))
         {
            log_cb(RETRO_LOG_INFO, "Found chd file.\n");
+
            /*
             * Map a file and copy the unzipped contents to the file 
            */ 
+           char basePath[PATH_MAX + 1];
+           char fullPath[PATH_MAX + 1];
            
-           char baseSamplePath[PATH_MAX + 1];
-           char fullSamplePath[PATH_MAX + 1];
-           
-           snprintf(baseSamplePath, PATH_MAX, "%s", "/tmp/");
-           snprintf(fullSamplePath, PATH_MAX, "%s%s", baseSamplePath, path_basename(entry->name));
+           snprintf(basePath, PATH_MAX, "%s", "/tmp/");
+           snprintf(fullPath, PATH_MAX, "%s%s", basePath, path_basename(entry->name));
 
-           int fd = open(fullSamplePath, O_RDWR | O_CREAT | O_TRUNC, (mode_t)0600);
+           int fd = open(fullPath, O_RDWR | O_CREAT | O_TRUNC, (mode_t)0600);
            if (fd != -1)
            {
-               snprintf(localCHDFile, 1024, "%s", fullSamplePath);
+               snprintf(localCHDFile, 1024, "%s", fullPath);
            
 	           if (lseek(fd, (entry->uncompressed_size - 1), SEEK_SET) != -1)
                {
@@ -2474,10 +2475,10 @@ static void unpackCHDs(const struct retro_game_info *game)
 		           
 		           if (fileBuf != (void*)(-1))
 		           {
-		              log_cb(RETRO_LOG_INFO, "Writing CHD content to %s.\n", fullSamplePath);
+		              log_cb(RETRO_LOG_INFO, "Writing CHD content to %s.\n", fullPath);
 	                  if (readuncompresszip(contentZip, entry, fileBuf) != 0)
 	                  {
-	                     log_cb(RETRO_LOG_ERROR, "Error writing CHD to %s.\n", fullSamplePath);
+	                     log_cb(RETRO_LOG_ERROR, "Error writing CHD to %s.\n", fullPath);
 	                  }
 	                 
 	                  munmap(fileBuf, entry->uncompressed_size);
@@ -2501,3 +2502,116 @@ static void unpackCHDs(const struct retro_game_info *game)
   }
 }
 
+static void unpackHiScoreDB(const struct retro_game_info *game)
+{
+   /* Search the zip for content */
+   log_cb(RETRO_LOG_INFO, "Searching zip content for hiscore.dat for file %s\n", path_basename(game->path));
+
+   ZIP *contentZip = openzip(FILETYPE_IMAGE, 0, path_basename(game->path));
+   if (contentZip)
+   {
+      log_cb(RETRO_LOG_INFO, "Zip file open.  Iterating content\n");
+      struct zipent *entry = NULL;
+      while ((entry = readzip(contentZip)))
+      {
+         log_cb(RETRO_LOG_INFO, "Zip entry name %s\n", entry->name);
+         if (strEndsWith("hiscore.dat", entry->name))
+         {
+            log_cb(RETRO_LOG_INFO, "Found content file.\n");
+            /*
+             * Create a buffer and copy the file contents to the buffer
+             */
+            char *fileBuf = malloc(entry->uncompressed_size);
+
+            if (fileBuf && readuncompresszip(contentZip, entry, fileBuf) == 0)
+            {
+               char basePath[PATH_MAX];
+               char fullPath[PATH_MAX];
+
+               osd_get_path(FILETYPE_HIGHSCORE_DB, basePath);
+               snprintf(fullPath, PATH_MAX, "%s%c%s", basePath, path_default_slash_c(), path_basename(entry->name));
+
+               _mkdir(basePath);
+
+               FILE *pFile = fopen(fullPath, "wb");
+               if (pFile)
+               {
+                  log_cb(RETRO_LOG_INFO, "Writing file content to %s.\n", fullPath);
+                  fwrite(fileBuf, sizeof(char), entry->uncompressed_size, pFile);
+                  fclose(pFile);
+               }
+               else
+               {
+                  log_cb(RETRO_LOG_ERROR, "Error writing file content to %s.\n", fullPath);
+               }
+
+               log_cb(RETRO_LOG_INFO, "Wrote file content to %s.\n", fullPath);
+            }
+
+            if (fileBuf)
+               free(fileBuf);
+
+            break;
+         }
+      }
+
+      closezip(contentZip);
+   }
+}
+
+static void unpackCheats(const struct retro_game_info *game)
+{
+   /* Search the zip for content */
+   log_cb(RETRO_LOG_INFO, "Searching zip content for cheats for file %s\n", path_basename(game->path));
+
+   ZIP *contentZip = openzip(FILETYPE_IMAGE, 0, path_basename(game->path));
+   if (contentZip)
+   {
+      log_cb(RETRO_LOG_INFO, "Zip file open.  Iterating content\n");
+      struct zipent *entry = NULL;
+      while ((entry = readzip(contentZip)))
+      {
+         log_cb(RETRO_LOG_INFO, "Zip entry name %s\n", entry->name);
+         if (strEndsWith("cheat.dat", entry->name))
+         {
+            log_cb(RETRO_LOG_INFO, "Found content file.\n");
+            /*
+             * Create a buffer and copy the file contents to the buffer
+             */
+            char *fileBuf = malloc(entry->uncompressed_size);
+
+            if (fileBuf && readuncompresszip(contentZip, entry, fileBuf) == 0)
+            {
+               char basePath[PATH_MAX];
+               char fullPath[PATH_MAX];
+
+               osd_get_path(FILETYPE_CHEAT, basePath);
+               snprintf(fullPath, PATH_MAX, "%s%c%s", basePath, path_default_slash_c(), path_basename(entry->name));
+
+               _mkdir(basePath);
+
+               FILE *pFile = fopen(fullPath, "wb");
+               if (pFile)
+               {
+                  log_cb(RETRO_LOG_INFO, "Writing file content to %s.\n", fullPath);
+                  fwrite(fileBuf, sizeof(char), entry->uncompressed_size, pFile);
+                  fclose(pFile);
+               }
+               else
+               {
+                  log_cb(RETRO_LOG_ERROR, "Error writing file content to %s.\n", fullPath);
+               }
+
+               log_cb(RETRO_LOG_INFO, "Wrote file content to %s.\n", fullPath);
+            }
+
+            if (fileBuf)
+               free(fileBuf);
+
+            break;
+         }
+      }
+
+      closezip(contentZip);
+   }
+}

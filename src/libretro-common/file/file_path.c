@@ -338,6 +338,30 @@ char *path_remove_extension(char *path)
 }
 
 /**
+ * path_remove_trailing_slash:
+ * @path                : path
+ *
+ * Mutates path by removing all trailing slashes.
+ */
+void path_remove_trailing_slash(char * path)
+{
+    int i = strlen(path);
+
+    while (i > 0)
+    {
+        if (path[i - 1] == path_default_slash_c())
+        {
+            path[i - 1] = '\0';
+            i--;
+        }
+        else
+        {
+            break;
+        }
+    }
+}
+
+/**
  * path_is_compressed_file:
  * @path               : path
  *

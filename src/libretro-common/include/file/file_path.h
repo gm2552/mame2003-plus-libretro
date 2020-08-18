@@ -117,6 +117,14 @@ const char *path_get_extension(const char *path);
 char *path_remove_extension(char *path);
 
 /**
+ * path_remove_trailing_slash:
+ * @path                : path
+ *
+ * Mutates path by removing all trailing slashes.
+ */
+void path_remove_trailing_slash(char * path);
+
+/**
  * path_basename:
  * @path               : path
  *
