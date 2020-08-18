@@ -1,6 +1,6 @@
 # mame2003-plus - AtGames Legends Ultimate Mod
 
-Current release is v1.0.0.  It can be downloaded from [here](https://github.com/gm2552/mame2010-libretro/releases/download/1.0.0/mame2010_libretro_alu_1.0.0.zip).
+Current release is v1.1.0.  It can be downloaded from [here](https://github.com/gm2552/mame2003-plus-libretro/releases/download/1.1.0/mame2003_plus_libretro_alu_1.1.0.zip).
 
 ## Acknowledgements 
 Port of MAME 0.139 for libretro,.
