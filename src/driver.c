@@ -1389,6 +1389,7 @@ const struct GameDriver *test_drivers[] =
 	DRIVER( flstoryj )	/* A45 (c) 1985 Taito Corporation (Japan) */
 	DRIVER( onna34ro )	/* A52 (c) 1985 Taito Corporation (Japan) */
 	DRIVER( onna34ra )	/* A52 (c) 1985 Taito Corporation (Japan) */
+  DRIVER( rumba )	    /* ??? (c) 1984 Taito Corporation (Japan) */
 	DRIVER( gladiatr )	/* ??? (c) 1986 Taito America Corporation (US) */
 	DRIVER( ogonsiro )	/* ??? (c) 1986 Taito Corporation (Japan) */
 	DRIVER( nycaptor )	/* A50 (c) 1985 Taito Corporation */
@@ -2155,9 +2156,12 @@ V-V                           TP-027
 	DRIVER( pang3j )	/* 11/05/1995 (c) 1995 Mitchell (Japan) not listed on Capcom's site */
 	DRIVER( megaman )	/* 06/10/1995 (c) 1995 (Asia)  */
 	DRIVER( rockmanj )	/* 22/09/1995 (c) 1995 (Japan) */
+    
+  /* CPS Prototype */
+	DRIVER( gulunpa )   /* (c) 1993 (prototype) */  
 		
-    /* Capcom CPS Changer */
-    DRIVER( wofch )		/* 31/10/1992 (c) 1992 (Japan) (CPS1 + QSound) */
+  /* Capcom CPS Changer */
+  DRIVER( wofch )		/* 31/10/1992 (c) 1992 (Japan) (CPS1 + QSound) */
 
 	/* Capcom CPS2 games */
 	/* list completed by CPS2Shock */
@@ -2698,8 +2702,11 @@ DokiDoki Penguin Land *not confirmed
 	DRIVER( transfrm )	/* 834-5803 (c) 1986 */
 	DRIVER( astrofl )	/* 834-5803 (c) 1986 */
 	DRIVER( ridleofp )	/* (c) 1986 Sega / Nasco */
+  DRIVER( opaopa )    /* (c) 1987 */
+  DRIVER( opaopan )   /* (c) 1987 */
+	DRIVER( tetrisse )  /* (c) 1988 */
+	DRIVER( slapshtr )  /* (c) 1986 */
 	DRIVER( fantzn2 )
-	DRIVER( opaopa )
 
 	/* other Sega 8-bit games */
 	DRIVER( turbo )		/* (c) 1981 Sega */
@@ -4197,6 +4204,7 @@ BOMULEUL CHAJARA SEGA ST-V  1997/04/11
 	DRIVER( aso )		/*            (c) 1985 */
 	DRIVER( tnk3 )		/* A5001      (c) 1985 */
 	DRIVER( tnk3j )		/* A5001      (c) 1985 */
+	DRIVER( tnk3b )		/* bootleg    (c) 1985 */    
 	DRIVER( athena )	/*       'UP' (c) 1986 */
 	DRIVER( fitegolf )	/*       'GU' (c) 1988 */
 	DRIVER( fitegol2 )	/*       'GU' (c) 1988 */
@@ -4295,6 +4303,7 @@ BOMULEUL CHAJARA SEGA ST-V  1997/04/11
 	DRIVER( maniach )	/* TA-0017 (c) 1986 + Taito America license */
 	DRIVER( maniach2 )	/* TA-0017 (c) 1986 + Taito America license */
 	DRIVER( renegade )	/* TA-0018 (c) 1986 + Taito America license */
+  DRIVER( renegadeb )	/* bootleg */
 	DRIVER( kuniokun )	/* TA-0018 (c) 1986 */
 	DRIVER( kuniokub )	/* bootleg */
 	DRIVER( xsleena )	/* TA-0019 (c) 1986 */

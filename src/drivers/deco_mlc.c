@@ -738,7 +738,13 @@ static DRIVER_INIT( mlc )
 {
 	/* The timing in the ARM core isn't as accurate as it should be, so bump up the
         effective clock rate here to compensate otherwise we have slowdowns in
-        Skull Fung where there probably shouldn't be. */
+        Skull Fung where there probably shouldn't be.
+        
+arcadez2003        
+      This slows down the game quite a bit, if this is a problem on lesser hardware
+      just disable cpunum_set_clockscale(0, 2.0f); Skull Fang will still slow down when 
+      certain enemies appear but it will be full speed for most of the time.
+  */
 	cpunum_set_clockscale(0, 2.0f);
 	mainCpuIsArm=1;
 	raster_irq_timer = timer_alloc(interrupt_gen);
@@ -755,4 +761,3 @@ GAME( 1996, skullfng, 0,        mlc_6bpp, mlc, mlc,      ROT270, "Data East Corp
 GAME( 1996, skullfngj,skullfng, mlc_6bpp, mlc, mlc,      ROT270, "Data East Corporation", "Skull Fang (Japan 1.09)" ) /* Version 1.09, Japan, Master 96.02.08 */
 GAME( 1996, hoops96,  0,        mlc_5bpp, mlc, mlc,      ROT0,   "Data East Corporation", "Hoops '96 (Europe/Asia 2.0)" )
 GAME( 1995, ddream95, hoops96,  mlc_5bpp, mlc, mlc,      ROT0,   "Data East Corporation", "Dunk Dream '95 (Japan 1.4 EAM)" )
-
