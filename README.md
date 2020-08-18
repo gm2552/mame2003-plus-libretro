@@ -23,7 +23,7 @@ In many of the mods below, additional files and folders are added to the ROM zip
 
 ### Config Saves
 
-Games settings which include controler configured, high scores, and nvram files are persisted into the consoles /userdata/mame2010 folder.  These settings will persist between power cycling the console.
+Games settings which include controler configured, high scores, and nvram files are persisted into the save partition of the UCE file.  These settings will persist between power cycling the console.
 
 ### Samples Support
 
@@ -75,7 +75,9 @@ simpbowl.zip
 
 ### HiScore.Dat
 
-You can add an option hiscore.dat file in the zip file.  Just simply include your file at the root directory of you .zip file.  Below is an example:
+The hiscore.dat database is needed by some games to properly save high score data. Normally the core will create a default hiscore.dat upon first launch so nothing is needed on the user's part.  However, if you want to use a custom hiscore.dat, such a file can be included in the zip file, either at the root directory or inside a subfolder.  Again this is rarely needed.
+
+Below is an example:
 
 ```
 Zaxxon.zip
@@ -85,14 +87,32 @@ Zaxxon.zip
    - hiscore.dat
 ```
 
+*NOTE:* Some instructions for making UCE packages talk about creating an empty hiscore.dat in the roms directory.  This approach is not compatible with this core.  Having a hiscore.dat in the roms directory actually prevents samples/nvram etc. packaged inside the zip file from working.
+
 ### Cheats
 
-Some games will allow for configured cheat.  To enable cheats, you will need to include the cheats.dat file into your zip.  Below is an example:
+Some games will allow for configured cheats.  To enable cheats, you will need to include the cheat.dat file into your zip.  The cheat.dat file can be placed at the root directory of the zip, or inside a subfolder.  Below is an example:
 
 ```
-Zaxxon.zip
-   - zaxxon.1
+1941.zip
+   - 41_09.rom
    .
    .
-   - cheats.dat
+   - cheat.dat
 ```
+
+The cheat.dat file has to be in the "old" format as used by MAME prior to version 0.126.  Below is an example:
+
+```
+; [ 1941 - Counter Attack (World) ]
+:1941:00000000:FF0D59:00000009:FFFFFFFF:Infinite Credits
+:1941:00000000:FF9A64:00000002:FFFFFFFF:Invincibility - 1st Side Fighter
+:1941:00010000:FF9AE4:00000002:FFFFFFFF:Invincibility - 1st Side Fighter (2/2)
+:1941:00000000:FF9964:00000002:FFFFFFFF:Invincibility - 2nd Side Fighter
+:1941:00010000:FF99E4:00000002:FFFFFFFF:Invincibility - 2nd Side Fighter (2/2)
+.
+.
+```
+
+Once inside game, go to Adv Config and enable cheats. Game will reset to make the selected cheats take effect.
+
